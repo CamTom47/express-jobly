@@ -44,20 +44,59 @@ class Company {
     return company;
   }
 
-  /** Find all companies.
+  /** Find all companies w/ optional search filters
+   * 
+   * Optional Search Filters
+   * - minEmployees
+   * - maxEmployees
+   * - name (partial matches, and case-insensitive)
    *
    * Returns [{ handle, name, description, numEmployees, logoUrl }, ...]
    * */
 
-  static async findAll() {
-    const companiesRes = await db.query(
-          `SELECT handle,
+  static async findAll(searchFilters = {}) {
+    let  query = `SELECT handle,
                   name,
-                  description,
                   num_employees AS "numEmployees",
+                  description,
                   logo_url AS "logoUrl"
-           FROM companies
-           ORDER BY name`);
+                  FROM companies`;
+
+    let whereExpressions = [];
+    let queryValues = [];
+
+    const { minEmployees, maxEmployees, name } = searchFilters;
+
+    //Check that minEmployees is not larger than maxEmployees if they both occur. If so, throw error.
+    if( minEmployees > maxEmployees){
+      throw new BadRequestError("MinEmployees cannot be greater than MaxEmployees", 400)
+    }
+
+
+    if(minEmployees  !== undefined){
+      queryValues.push(minEmployees)
+      whereExpressions.push(`num_employees >= $${queryValues.length}`)
+    }
+
+    if(maxEmployees !== undefined){
+      queryValues.push(maxEmployees)
+      whereExpressions.push(`num_employees <= $${queryValues.length}`)
+    }
+
+    if(name){
+      queryValues.push(`%${name}%`)
+      whereExpressions.push(`name ILIKE $${queryValues.length}`)
+    }
+
+    if(whereExpressions.length > 0 ){
+      query += " WHERE " + whereExpressions.join(" AND ")
+    }
+
+    // Complete query by adding Order.
+
+    query += " ORDER BY name";
+
+    const companiesRes = await db.query(query, queryValues)
     return companiesRes.rows;
   }
 
@@ -80,9 +119,22 @@ class Company {
            WHERE handle = $1`,
         [handle]);
 
+
+
     const company = companyRes.rows[0];
 
     if (!company) throw new NotFoundError(`No company: ${handle}`);
+
+    const jobsRes = await db.query(
+      `SELECT id,
+              title,
+              salary,
+              equity,
+              company_handle AS "companyHandle"
+            FROM jobs
+            WHERE company_handle = $1`, [company.handle]);
+
+      company.jobs = jobsRes.rows
 
     return company;
   }

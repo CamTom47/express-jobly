@@ -139,7 +139,14 @@ class User {
 
     if (!user) throw new NotFoundError(`No user: ${username}`);
 
-    return user;
+    const applicationRes = await db.query(
+          `SELECT a.job_id
+           FROM applications AS a
+           WHERE a.username = $1`, [username]
+    )
+
+    user.applications = applicationRes.rows.map(a => a.job_id);
+      return user
   }
 
   /** Update user data with `data`.
@@ -165,7 +172,7 @@ class User {
     }
 
     const { setCols, values } = sqlForPartialUpdate(
-        data,
+        data, 
         {
           firstName: "first_name",
           lastName: "last_name",
@@ -204,7 +211,42 @@ class User {
 
     if (!user) throw new NotFoundError(`No user: ${username}`);
   }
+  /** Apply for a job
+   * 
+   * Params:
+   * - username: username applying for job
+   * - jobId: job Id
+   */
+  
+  static async apply(username, jobId) {
+    let jobCheck = await db.query(`
+          SELECT id
+          FROM jobs
+          WHERE id = $1`, [jobId]);
+
+    const job = jobCheck.rows[0]
+
+    if(!job) throw new NotFoundError(`Job ${jobId} not found`)
+
+    let userCheck = await db.query(`
+        SELECT username 
+        FROM users
+        WHERE username = $1`,
+      [username]);
+
+    const user = userCheck.rows[0]
+
+    if(!user) throw new NotFoundError(`User: ${username} not found`)
+
+    await db.query(
+      `INSERT INTO applications (username, job_id)
+       VALUES ($1, $2)`, [username, jobId]
+    )
+
+  
+  }
 }
+
 
 
 module.exports = User;

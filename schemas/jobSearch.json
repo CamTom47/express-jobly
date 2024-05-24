@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2019-09/schema",
+    "$id": "http://example.com/example.json",
+    "type": "object",
+    "required": [],
+    "properties": {
+            "hasEquity": {
+            "type": "boolean"
+        },
+        "minSalary": {
+            "type": "integer",
+            "minimum": 0
+        },
+        "title": {
+            "type": "string",
+            "minLength": 1
+        }
+    },
+    "additionalProperties": false
+
+}
+  
